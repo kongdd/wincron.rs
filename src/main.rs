@@ -163,20 +163,23 @@ fn show_startup_status() -> Result<()> {
     for item in items {
         println!("Name    : {}", item.name);
         println!("Command : {}", item.command);
-
-        match item.cron_path {
-            Some(cron) => {
-                println!("Cron    : {}", cron.display());
-                match load_tasks(&cron) {
-                    Ok(tasks) => print_tasks(&tasks),
-                    Err(e) => println!("Failed to read cron file: {e:?}"),
-                }
-            }
-            None => println!("Cron    : <not found in command>"),
-        }
+        print_startup_cron(item.cron_path);
 
         println!();
     }
 
     Ok(())
+}
+
+fn print_startup_cron(cron_path: Option<PathBuf>) {
+    let Some(cron) = cron_path else {
+        println!("Cron    : <not found in command>");
+        return;
+    };
+
+    println!("Cron    : {}", cron.display());
+    match load_tasks(&cron) {
+        Ok(tasks) => print_tasks(&tasks),
+        Err(e) => println!("Failed to read cron file: {e:?}"),
+    }
 }

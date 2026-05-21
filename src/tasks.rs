@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use cron::Schedule;
 use std::{fs, path::Path, str::FromStr};
@@ -32,7 +32,6 @@ pub fn load_tasks(path: &Path) -> Result<Vec<CronTask>> {
                 let next_run = schedule.upcoming(Utc).next();
 
                 info!("line {} next run {:?}: {}", line_no, next_run, command);
-
                 tasks.push(CronTask {
                     line_no,
                     expr,
@@ -90,30 +89,26 @@ fn parse_cron_line(line: &str) -> Result<(String, String, Schedule)> {
     let spans = token_spans(line);
 
     if spans.len() < 6 {
-        return Err(anyhow!("too few fields"));
+        bail!("too few fields");
     }
 
     if spans.len() >= 7 {
         let expr = line[spans[0].0..spans[5].1].to_string();
-        let command = line[spans[6].0..].trim().to_string();
 
         if let Ok(schedule) = Schedule::from_str(&expr) {
+            let command = line[spans[6].0..].trim().to_string();
             return Ok((expr, command, schedule));
         }
     }
 
-    if spans.len() >= 6 {
-        let expr_5 = line[spans[0].0..spans[4].1].to_string();
-        let expr_6 = format!("0 {}", expr_5);
-        let command = line[spans[5].0..].trim().to_string();
+    let expr_5 = line[spans[0].0..spans[4].1].to_string();
+    let expr_6 = format!("0 {}", expr_5);
+    let command = line[spans[5].0..].trim().to_string();
 
-        let schedule = Schedule::from_str(&expr_6)
-            .with_context(|| format!("invalid cron expression: {expr_5}"))?;
+    let schedule = Schedule::from_str(&expr_6)
+        .with_context(|| format!("invalid cron expression: {expr_5}"))?;
 
-        return Ok((expr_6, command, schedule));
-    }
-
-    Err(anyhow!("invalid cron line"))
+    Ok((expr_6, command, schedule))
 }
 
 fn token_spans(s: &str) -> Vec<(usize, usize)> {

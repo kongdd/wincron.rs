@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     thread,
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 use tracing::{error, info};
 
@@ -27,7 +27,7 @@ pub fn run_scheduler(cron_path: PathBuf, tick_seconds: u64) -> Result<()> {
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
 
-    let mut last_modified: Option<SystemTime> = None;
+    let mut last_modified = None;
     let mut tasks = Vec::new();
 
     loop {
@@ -53,23 +53,27 @@ pub fn run_scheduler(cron_path: PathBuf, tick_seconds: u64) -> Result<()> {
                 task.next_run = task.schedule.upcoming(Utc).next();
             }
 
-            if let Some(next) = task.next_run {
-                if now >= next {
-                    let line_no = task.line_no;
-                    let command = task.command.clone();
-                    let cwd = task_dir.clone();
+            let Some(next) = task.next_run else {
+                continue;
+            };
 
-                    info!("dispatch line {}: {}", line_no, command);
-
-                    thread::spawn(move || {
-                        if let Err(e) = run_shell_command(&command, &cwd) {
-                            error!("failed to run line {}: {:?}", line_no, e);
-                        }
-                    });
-
-                    task.next_run = task.schedule.upcoming(Utc).next();
-                }
+            if now < next {
+                continue;
             }
+
+            let line_no = task.line_no;
+            let command = task.command.clone();
+            let cwd = task_dir.clone();
+
+            info!("dispatch line {}: {}", line_no, command);
+
+            thread::spawn(move || {
+                if let Err(e) = run_shell_command(&command, &cwd) {
+                    error!("failed to run line {}: {:?}", line_no, e);
+                }
+            });
+
+            task.next_run = task.schedule.upcoming(Utc).next();
         }
 
         thread::sleep(Duration::from_secs(tick_seconds.max(1)));
@@ -103,11 +107,9 @@ fn run_shell_command(command: &str, cwd: &Path) -> Result<()> {
         .output()
         .with_context(|| format!("failed to run command: {command}"))?;
 
-    let finished_at = Local::now();
-
     info!(
         "task finished at {}",
-        finished_at.format("%Y-%m-%d %H:%M:%S")
+        Local::now().format("%Y-%m-%d %H:%M:%S")
     );
     info!("exit status: {}", output.status);
 

@@ -1,6 +1,9 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
+#[cfg(windows)]
+const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+
 #[derive(Debug)]
 pub struct StartupItem {
     pub name: String,
@@ -26,10 +29,8 @@ pub fn install_startup(name: &str, cron_path: &Path) -> Result<()> {
     );
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let run_key_path = r"Software\Microsoft\Windows\CurrentVersion\Run";
-
     let (run_key, _) = hkcu
-        .create_subkey(run_key_path)
+        .create_subkey(RUN_KEY)
         .context("failed to open registry Run key")?;
 
     run_key
@@ -60,10 +61,8 @@ pub fn uninstall_startup(name: &str) -> Result<()> {
     use winreg::RegKey;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let run_key_path = r"Software\Microsoft\Windows\CurrentVersion\Run";
-
     let run_key = hkcu
-        .open_subkey_with_flags(run_key_path, KEY_SET_VALUE)
+        .open_subkey_with_flags(RUN_KEY, KEY_SET_VALUE)
         .context("failed to open registry Run key")?;
 
     match run_key.delete_value(name) {
@@ -95,10 +94,8 @@ pub fn list_startup_items() -> Result<Vec<StartupItem>> {
     use winreg::RegKey;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let run_key_path = r"Software\Microsoft\Windows\CurrentVersion\Run";
-
     let run_key = hkcu
-        .open_subkey_with_flags(run_key_path, KEY_READ)
+        .open_subkey_with_flags(RUN_KEY, KEY_READ)
         .context("failed to open registry Run key")?;
 
     let mut items = Vec::new();
@@ -106,20 +103,17 @@ pub fn list_startup_items() -> Result<Vec<StartupItem>> {
     for value in run_key.enum_values() {
         let (name, _) = value?;
 
-        let command: String = match run_key.get_value(&name) {
-            Ok(v) => v,
-            Err(_) => continue,
+        let Ok(command) = run_key.get_value::<String, _>(&name) else {
+            continue;
         };
 
         let command_lc = command.to_lowercase();
 
         if command_lc.contains("wincron") && command_lc.contains(" run ") {
-            let cron_path = extract_cron_path(&command);
-
             items.push(StartupItem {
                 name,
+                cron_path: extract_cron_path(&command),
                 command,
-                cron_path,
             });
         }
     }
@@ -134,13 +128,11 @@ pub fn list_startup_items() -> Result<Vec<StartupItem>> {
 
 /// Extract the path following --cron from a startup command line.
 fn extract_cron_path(command: &str) -> Option<PathBuf> {
-    let args = split_command_like_windows(command);
-
-    let mut iter = args.iter();
+    let mut iter = split_command_like_windows(command).into_iter();
 
     while let Some(arg) = iter.next() {
         if arg == "--cron" {
-            return iter.next().map(PathBuf::from);
+            return iter.next().map(Into::into);
         }
 
         if let Some(rest) = arg.strip_prefix("--cron=") {
