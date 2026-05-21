@@ -4,7 +4,7 @@
 */10 * * * * * echo hello >> wincron.log
 
 # 每 5 分钟执行一次
-*/10 * * * * * powershell -NoProfile -Command "Get-Date >> date.log"
+*/10 * * * * * powershell -NoProfile -Command "Get-Date >> pwsh.log"
 
 # 每天 09:00 执行 R 脚本
 */10 * * * * * Rscript.exe Scripts/hello.R >> rcron.log
