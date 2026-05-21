@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local};
 use cron::Schedule;
 use std::{fs, path::Path, str::FromStr};
 use tracing::{info, warn};
@@ -10,7 +10,7 @@ pub struct CronTask {
     pub expr: String,
     pub command: String,
     pub schedule: Schedule,
-    pub next_run: Option<DateTime<Utc>>,
+    pub next_run: Option<DateTime<Local>>,
 }
 
 pub fn load_tasks(path: &Path) -> Result<Vec<CronTask>> {
@@ -29,7 +29,7 @@ pub fn load_tasks(path: &Path) -> Result<Vec<CronTask>> {
 
         match parse_cron_line(line) {
             Ok((expr, command, schedule)) => {
-                let next_run = schedule.upcoming(Utc).next();
+                let next_run = schedule.upcoming(Local).next();
 
                 info!("line {} next run {:?}: {}", line_no, next_run, command);
                 tasks.push(CronTask {

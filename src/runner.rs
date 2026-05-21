@@ -1,6 +1,6 @@
 use crate::{log_dir, tasks::load_tasks};
 use anyhow::{anyhow, Context, Result};
-use chrono::{Local, Utc};
+use chrono::Local;
 #[cfg(windows)]
 use std::ffi::OsString;
 #[cfg(windows)]
@@ -46,11 +46,11 @@ pub fn run_scheduler(cron_path: PathBuf, tick_seconds: u64) -> Result<()> {
             }
         }
 
-        let now = Utc::now();
+        let now = Local::now();
 
         for task in tasks.iter_mut() {
             if task.next_run.is_none() {
-                task.next_run = task.schedule.upcoming(Utc).next();
+                task.next_run = task.schedule.upcoming(Local).next();
             }
 
             let Some(next) = task.next_run else {
@@ -73,7 +73,7 @@ pub fn run_scheduler(cron_path: PathBuf, tick_seconds: u64) -> Result<()> {
                 }
             });
 
-            task.next_run = task.schedule.upcoming(Utc).next();
+            task.next_run = task.schedule.upcoming(Local).next();
         }
 
         thread::sleep(Duration::from_secs(tick_seconds.max(1)));
