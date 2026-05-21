@@ -68,9 +68,8 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
-    let _log_guard = init_logging()?;
-
     let cli = Cli::parse();
+    let _log_guard = init_logging()?;
 
     match cli.command {
         Commands::Run { cron, tick } => runner::run_scheduler(cron, tick),

@@ -1,10 +1,11 @@
 # wincron
 
-A tiny Windows cron runner written in Rust.
+A tiny Windows cron runner using local time.
 
 ## Features
 
 - Cron-style task scheduling with 6-field format: `秒 分 时 日 月 星期`
+- 5-field cron expressions are also accepted as `分 时 日 月 星期`
 - Hot-reload `cron.txt` on changes
 - Windows startup registration via registry
 - Logging to `%LOCALAPPDATA%\WinCron\`
@@ -14,22 +15,61 @@ A tiny Windows cron runner written in Rust.
 
 ```bash
 # Run scheduler (default cron.txt)
-cargo run -- run
+wincron run
 
 # Run with custom cron file and tick interval
-cargo run -- run --cron path/to/cron.txt --tick 5
+wincron run --cron path/to/cron.txt --tick 5
 
 # Install as Windows startup app
-cargo run -- install-startup
+wincron install-startup
+
+# Install startup with a specific cron file
+wincron install-startup --cron C:\path\to\cron.txt
+
+# Install startup with a custom registry value name
+wincron install-startup --cron C:\path\to\cron.txt --name MyWinCron
 
 # Remove startup registration
-cargo run -- uninstall-startup
+wincron uninstall-startup
+
+# Remove a custom startup registration
+wincron uninstall-startup --name MyWinCron
 
 # Show task status
-cargo run -- status
+wincron status
+
+# Show startup registration and its cron tasks
+wincron status --startup
 
 # Show or open log directory
-cargo run -- logs --open
+wincron logs --open
+```
+
+## Windows Startup
+
+`install-startup` writes the current executable to:
+
+```text
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+```
+
+The registered command looks like:
+
+```text
+"C:\path\to\wincron.exe" run --cron "C:\path\to\cron.txt"
+```
+
+Use the release executable when registering startup:
+
+```bash
+cargo build --release
+target\release\wincron.exe install-startup --cron C:\path\to\cron.txt
+```
+
+Check what is registered:
+
+```bash
+wincron status --startup
 ```
 
 ## cron.txt Format
@@ -40,14 +80,14 @@ cargo run -- logs --open
 # Every 10 seconds
 */10 * * * * * echo hello >> wincron.log
 
-# Every 5 minutes via PowerShell
+# Every 10 seconds via PowerShell
 */10 * * * * * powershell -NoProfile -Command "Get-Date >> pwsh.log"
 
 # Daily R script at 09:00
-0 9 * * * * Rscript.exe Scripts/hello.R >> rcron.log
+0 0 9 * * * Rscript.exe Scripts/hello.R >> rcron.log
 
 # Daily Julia script at 23:30
-0 23 * * * * julia Scripts/hello.jl >> julia.log
+0 30 23 * * * julia Scripts/hello.jl >> julia.log
 ```
 
 ## Log Output
