@@ -1,3 +1,4 @@
+pub mod config;
 pub mod runner;
 pub mod startup;
 pub mod tasks;

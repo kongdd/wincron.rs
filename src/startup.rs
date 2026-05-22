@@ -12,7 +12,7 @@ pub struct StartupItem {
 }
 
 #[cfg(windows)]
-pub fn install_startup(name: &str, cron_path: &Path) -> Result<()> {
+pub fn install_startup(name: &str, cron_path: Option<&Path>) -> Result<()> {
     use crate::log_dir;
     use std::fs;
     use tracing::info;
@@ -20,13 +20,14 @@ pub fn install_startup(name: &str, cron_path: &Path) -> Result<()> {
     use winreg::RegKey;
 
     let exe = std::env::current_exe().context("failed to get current exe path")?;
-    let cron_abs = fs::canonicalize(cron_path).unwrap_or_else(|_| cron_path.to_path_buf());
 
-    let command = format!(
-        "\"{}\" run --cron \"{}\"",
-        exe.display(),
-        cron_abs.display()
-    );
+    let command = match cron_path {
+        Some(path) => {
+            let cron_abs = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+            format!("\"{}\" run --cron \"{}\"", exe.display(), cron_abs.display())
+        }
+        None => format!("\"{}\" daemon-run", exe.display()),
+    };
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let (run_key, _) = hkcu
@@ -48,7 +49,7 @@ pub fn install_startup(name: &str, cron_path: &Path) -> Result<()> {
 }
 
 #[cfg(not(windows))]
-pub fn install_startup(_name: &str, _cron_path: &Path) -> Result<()> {
+pub fn install_startup(_name: &str, _cron_path: Option<&Path>) -> Result<()> {
     Err(anyhow::anyhow!(
         "install-startup is only supported on Windows"
     ))
