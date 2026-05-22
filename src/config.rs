@@ -38,8 +38,8 @@ pub fn load_paths() -> Result<Vec<PathBuf>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let text = fs::read_to_string(&path)
-        .with_context(|| format!("failed to read {}", path.display()))?;
+    let text =
+        fs::read_to_string(&path).with_context(|| format!("failed to read {}", path.display()))?;
     Ok(text
         .lines()
         .map(str::trim)
@@ -59,8 +59,7 @@ pub fn save_paths(paths: &[PathBuf]) -> Result<()> {
         .map(|p| p.to_string_lossy().into_owned())
         .collect::<Vec<_>>()
         .join("\n");
-    fs::write(&path, text)
-        .with_context(|| format!("failed to write {}", path.display()))?;
+    fs::write(&path, text).with_context(|| format!("failed to write {}", path.display()))?;
     Ok(())
 }
 

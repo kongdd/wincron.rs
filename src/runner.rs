@@ -131,10 +131,7 @@ pub fn run_daemon(tick_seconds: u64) -> Result<()> {
                     Ok(new_tasks) => {
                         info!(
                             "{}: loaded {} task(s)",
-                            cron_path
-                                .file_name()
-                                .unwrap_or_default()
-                                .to_string_lossy(),
+                            cron_path.file_name().unwrap_or_default().to_string_lossy(),
                             new_tasks.len()
                         );
                         *tasks = new_tasks;
@@ -170,6 +167,14 @@ pub fn run_daemon(tick_seconds: u64) -> Result<()> {
     }
 }
 
+pub fn test_hidden_window(seconds: u64) -> Result<()> {
+    let seconds = seconds.max(1);
+    let command = format!(
+        "echo wincron hidden-window test started & timeout /t {seconds} /nobreak > nul & echo wincron hidden-window test finished"
+    );
+    run_shell_command(&command, &std::env::current_dir()?)
+}
+
 fn run_shell_command(command: &str, cwd: &Path) -> Result<()> {
     let started_at = Local::now();
 
@@ -178,16 +183,18 @@ fn run_shell_command(command: &str, cwd: &Path) -> Result<()> {
     info!("task cwd: {}", cwd.display());
 
     #[cfg(windows)]
-    let command = format!("pushd \"{}\" && {}", cmd_path(cwd), command);
+    let output = {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let command = format!("pushd \"{}\" && {}", cmd_path(cwd), command);
 
-    #[cfg(windows)]
-    let output = Command::new("cmd")
-        .arg("/S")
-        .arg("/C")
-        .raw_arg(&command)
-        .current_dir(windows_shell_start_dir())
-        .output()
-        .with_context(|| format!("failed to run command: {command}"))?;
+        Command::new("cmd")
+            .args(["/D", "/Q", "/S", "/C"])
+            .raw_arg(&command)
+            .current_dir(windows_shell_start_dir())
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .with_context(|| format!("failed to run command: {command}"))?
+    };
 
     #[cfg(not(windows))]
     let output = Command::new("sh")

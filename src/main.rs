@@ -101,6 +101,13 @@ enum Commands {
         open: bool,
     },
 
+    /// Run a short hidden child process test
+    TestWindow {
+        /// Seconds to keep the test child process alive
+        #[arg(long, default_value_t = 5)]
+        seconds: u64,
+    },
+
     #[command(hide = true)]
     DaemonRun,
 }
@@ -126,18 +133,19 @@ fn main() -> Result<()> {
         Commands::Task { action } => match action {
             TaskAction::List => cmd_task_list(),
         },
-        Commands::InstallStartup { cron, name } => {
-            startup::install_startup(&name, cron.as_deref())
-        }
+        Commands::InstallStartup { cron, name } => startup::install_startup(&name, cron.as_deref()),
         Commands::UninstallStartup { name } => startup::uninstall_startup(&name),
         Commands::Status { cron, startup } => show_status(cron, startup),
         Commands::Logs { open } => show_logs(open),
+        Commands::TestWindow { seconds } => runner::test_hidden_window(seconds),
     }
 }
 
 pub fn log_dir() -> std::path::PathBuf {
     dirs::data_local_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")))
+        .unwrap_or_else(|| {
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+        })
         .join("WinCron")
 }
 
@@ -210,7 +218,11 @@ fn start_daemon() -> Result<()> {
         .map(|p| format!("PID {}", p))
         .unwrap_or_else(|| "PID unknown".to_string());
 
-    println!("Daemon started in background ({}, {} cron file(s)).", pid_info, paths.len());
+    println!(
+        "Daemon started in background ({}, {} cron file(s)).",
+        pid_info,
+        paths.len()
+    );
     println!("Config : {}", config::config_path().display());
     println!("Logs   : {}", log_dir().display());
     println!("Stop   : wincron stop");

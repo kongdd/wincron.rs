@@ -24,7 +24,11 @@ pub fn install_startup(name: &str, cron_path: Option<&Path>) -> Result<()> {
     let command = match cron_path {
         Some(path) => {
             let cron_abs = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-            format!("\"{}\" run --cron \"{}\"", exe.display(), cron_abs.display())
+            format!(
+                "\"{}\" run --cron \"{}\"",
+                exe.display(),
+                cron_abs.display()
+            )
         }
         None => format!("\"{}\" daemon-run", exe.display()),
     };
