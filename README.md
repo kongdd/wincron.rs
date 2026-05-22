@@ -1,6 +1,5 @@
 # wincron
 
-A tiny Windows cron runner using local time.
 
 ```bash
 wincron -h
@@ -46,9 +45,12 @@ Options:
 
 2. wincron添加cron.txt
 
+直接下载release中的wincron.exe文件。
+
+> 不建议自己编译。
 ```bash
 cargo install --git https://github.com/kongdd/wincron
-# cargo install --path .
+cargo install --path .
 ```
 
 ```bash
