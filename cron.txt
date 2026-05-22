@@ -6,14 +6,17 @@
 # 每天 7:00 开始，每 5 小时唤醒一次（7:00, 12:00, 17:00, 22:00）
 0 0 7,12,17,22 * * * codex exec -m gpt-5.4-mini "hi"
 
-# 每 10 秒执行一次
-*/10 * * * * * echo hello
+# # 每 10 秒执行一次
+# */10 * * * * * echo hello
 
 # 每 5 分钟执行一次
-*/10 * * * * * powershell -NoProfile -Command "Get-Date" >> pwsh.log
+# */10 * * * * * powershell -NoProfile -Command "Get-Date" >> pwsh.log
 
-# 每天 09:00 执行 R 脚本
-7,15,25,35,46,55 * * * * * Rscript.exe Scripts/hello.R
+# 每 10 秒执行一次最小 PowerShell 脚本测试
+# */10 * * * * * powershell.exe -NoProfile -ExecutionPolicy Bypass -File Scripts/hello.ps1
+
+# # 每天 09:00 执行 R 脚本
+# 7,15,25,35,46,55 * * * * * Rscript.exe Scripts/hello.R >> R.log
 
 # # 执行 Julia 脚本
-# 7,12,17,22 * * * * * julia Scripts/hello.jl
+# 7,12,17,22 * * * * * julia Scripts/hello.jl > julia.log
