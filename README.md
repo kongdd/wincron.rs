@@ -11,6 +11,31 @@ A tiny Windows cron runner using local time.
 - Logging to `%LOCALAPPDATA%\WinCron\`
 - Cross-platform task commands (R, Julia, PowerShell, etc.)
 
+```bash
+wincron -h
+A tiny Windows cron runner written in Rust
+
+Usage: wincron.exe <COMMAND>
+
+Commands:
+  run                Run cron scheduler in foreground (keeps window open)
+  start              Start background daemon (reads all registered cron files)
+  stop               Stop the running background daemon
+  add                Add a cron file path to the daemon config
+  delete             Remove a cron file path from the daemon config [aliases: rm]
+  list               List registered cron file paths
+  task               Show scheduled tasks from all registered cron files
+  install-startup    Install current executable as Windows startup app
+  uninstall-startup  Remove Windows startup registration
+  status             Show cron tasks or startup registrations
+  logs               Show or open log directory
+  help               Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
 ## Usage
 
 ```bash

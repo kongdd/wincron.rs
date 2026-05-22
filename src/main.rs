@@ -36,7 +36,8 @@ enum Commands {
     },
 
     /// Start background daemon (reads all registered cron files)
-    Daemon,
+    #[command(alias = "daemon")]
+    Start,
 
     /// Stop the running background daemon
     Stop,
@@ -116,7 +117,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Run { cron, tick } => runner::run_scheduler(cron, tick),
-        Commands::Daemon => start_daemon(),
+        Commands::Start => start_daemon(),
         Commands::Stop => stop_daemon(),
         Commands::DaemonRun => runner::run_daemon(1),
         Commands::Add { path } => cmd_add(path),
