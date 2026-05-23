@@ -1,10 +1,10 @@
 # 秒 分 时 日 月 星期 命令
 
 # 每天 7:00 开始，每 5 小时唤醒一次（7:00, 12:00, 17:00, 22:00）
-0 0 7,12,17,22 * * * claude -p --model haiku --effort low "hi"
+0 0 7,12,17 * * * claude -p --model haiku --effort low "hi"
 
 # 每天 7:00 开始，每 5 小时唤醒一次（7:00, 12:00, 17:00, 22:00）
-0 0 7,12,17,22 * * * codex exec -m gpt-5.4-mini "hi"
+0 0 7,12,17 * * * codex exec -m gpt-5.4-mini "hi"
 
 # # 每 10 秒执行一次
 # */10 * * * * * echo hello
