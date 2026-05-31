@@ -99,9 +99,15 @@ pub fn list_startup_items() -> Result<Vec<StartupItem>> {
     use winreg::RegKey;
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let run_key = hkcu
-        .open_subkey_with_flags(RUN_KEY, KEY_READ)
-        .context("failed to open registry Run key")?;
+    let run_key = match hkcu.open_subkey_with_flags(RUN_KEY, KEY_READ) {
+        Ok(key) => key,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e).context("failed to open registry Run key"),
+    };
+
+    let current_exe_name = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.file_name().map(|name| name.to_string_lossy().to_string()));
 
     let mut items = Vec::new();
 
@@ -112,12 +118,10 @@ pub fn list_startup_items() -> Result<Vec<StartupItem>> {
             continue;
         };
 
-        let command_lc = command.to_lowercase();
-
-        if command_lc.contains("wincron") && command_lc.contains(" run ") {
+        if let Some(parsed) = parse_startup_command(&command, current_exe_name.as_deref()) {
             items.push(StartupItem {
                 name,
-                cron_path: extract_cron_path(&command),
+                cron_path: parsed.cron_path,
                 command,
             });
         }
@@ -131,10 +135,10 @@ pub fn list_startup_items() -> Result<Vec<StartupItem>> {
     Ok(Vec::new())
 }
 
-/// Extract the path following --cron from a startup command line.
-fn extract_cron_path(command: &str) -> Option<PathBuf> {
-    let mut iter = split_command_like_windows(command).into_iter();
-
+fn extract_cron_path_from_args<I>(mut iter: I) -> Option<PathBuf>
+where
+    I: Iterator<Item = String>,
+{
     while let Some(arg) = iter.next() {
         if arg == "--cron" {
             return iter.next().map(Into::into);
@@ -146,6 +150,47 @@ fn extract_cron_path(command: &str) -> Option<PathBuf> {
     }
 
     None
+}
+
+#[derive(Debug)]
+struct ParsedStartupCommand {
+    cron_path: Option<PathBuf>,
+}
+
+fn parse_startup_command(
+    command: &str,
+    current_exe_name: Option<&str>,
+) -> Option<ParsedStartupCommand> {
+    let mut args = split_command_like_windows(command).into_iter();
+    let exe = args.next()?;
+
+    if !is_wincron_executable(Path::new(&exe), current_exe_name) {
+        return None;
+    }
+
+    match args.next()?.as_str() {
+        "run" => Some(ParsedStartupCommand {
+            cron_path: extract_cron_path_from_args(args),
+        }),
+        "daemon-run" => Some(ParsedStartupCommand { cron_path: None }),
+        _ => None,
+    }
+}
+
+fn is_wincron_executable(exe_path: &Path, current_exe_name: Option<&str>) -> bool {
+    let exe_name = exe_path.file_name().and_then(|name| name.to_str());
+
+    let Some(exe_name) = exe_name else {
+        return false;
+    };
+
+    if exe_name.eq_ignore_ascii_case("wincron") || exe_name.eq_ignore_ascii_case("wincron.exe") {
+        return true;
+    }
+
+    current_exe_name
+        .map(|name| exe_name.eq_ignore_ascii_case(name))
+        .unwrap_or(false)
 }
 
 fn split_command_like_windows(s: &str) -> Vec<String> {
@@ -173,4 +218,45 @@ fn split_command_like_windows(s: &str) -> Vec<String> {
     }
 
     args
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_startup_command;
+    use std::path::PathBuf;
+
+    #[test]
+    fn parse_startup_command_supports_daemon_run() {
+        let command = r#""C:\Apps\wincron.exe" daemon-run"#;
+        let parsed = parse_startup_command(command, None).expect("must parse daemon-run");
+        assert_eq!(parsed.cron_path, None);
+    }
+
+    #[test]
+    fn parse_startup_command_supports_run_with_cron() {
+        let command = r#""C:\Apps\wincron.exe" run --cron "D:\cron.txt""#;
+        let parsed = parse_startup_command(command, None).expect("must parse run --cron");
+        assert_eq!(parsed.cron_path, Some(PathBuf::from(r"D:\cron.txt")));
+    }
+
+    #[test]
+    fn parse_startup_command_accepts_renamed_current_exe() {
+        let command = r#""C:\Apps\my-scheduler.exe" daemon-run"#;
+        let parsed = parse_startup_command(command, Some("my-scheduler.exe"));
+        assert!(parsed.is_some());
+    }
+
+    #[test]
+    fn parse_startup_command_rejects_unrelated_executable() {
+        let command = r#""C:\Apps\other.exe" daemon-run"#;
+        let parsed = parse_startup_command(command, Some("my-scheduler.exe"));
+        assert!(parsed.is_none());
+    }
+
+    #[test]
+    fn extract_cron_path_supports_equals_form() {
+        let command = r#""C:\Apps\wincron.exe" run --cron=D:\cron.txt"#;
+        let parsed = parse_startup_command(command, None).expect("must parse --cron=<path>");
+        assert_eq!(parsed.cron_path, Some(PathBuf::from(r"D:\cron.txt")));
+    }
 }
